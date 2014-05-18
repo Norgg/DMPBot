@@ -1,4 +1,4 @@
-import sys, os, re
+import sys, os, re, traceback
 from irc.bot import SingleServerIRCBot
 
 class DMPBot(SingleServerIRCBot):
@@ -25,21 +25,24 @@ class DMPBot(SingleServerIRCBot):
 
     def checklog(self):
         for logdir in logdirs:
-            line = logdir.check()
-            if line:
-                #print(line)
-                joinmatch = self.joinre.match(line)
-                quitmatch = self.quitre.match(line)
-                disconnmatch = self.disconnre.match(line)
-                globalmatch = self.globalre.match(line)
-                if joinmatch:
-                    self.msg(logdir.tag, "%s joined the server" % joinmatch.group(1))
-                elif quitmatch:
-                    self.msg(logdir.tag, "%s quit" % quitmatch.group(1))
-                elif disconnmatch:
-                    self.msg(logdir.tag, "%s disconnected: %s" % (disconnmatch.group(1), disconnmatch.group(3)))
-                elif globalmatch:
-                    self.msg(logdir.tag, "%s: %s" % (globalmatch.group(1), globalmatch.group(2)))
+            try:
+                line = logdir.check()
+                if line:
+                    #print(line)
+                    joinmatch = self.joinre.match(line)
+                    quitmatch = self.quitre.match(line)
+                    disconnmatch = self.disconnre.match(line)
+                    globalmatch = self.globalre.match(line)
+                    if joinmatch:
+                        self.msg(logdir.tag, "%s joined the server" % joinmatch.group(1))
+                    elif quitmatch:
+                        self.msg(logdir.tag, "%s quit" % quitmatch.group(1))
+                    elif disconnmatch:
+                        self.msg(logdir.tag, "%s disconnected: %s" % (disconnmatch.group(1), disconnmatch.group(3)))
+                    elif globalmatch:
+                        self.msg(logdir.tag, "%s: %s" % (globalmatch.group(1), globalmatch.group(2)))
+            except:
+                traceback.print_exc()
     def msg(self, tag, message):
         if tag:
             message = "%s - %s" % (tag, message)

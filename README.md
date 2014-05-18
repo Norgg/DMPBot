@@ -10,4 +10,5 @@ Single server usage:
     python bot.py irc.esper.net dumpling "#dmptest" DMPServer/logs/ 
 
 Multi server usage:
+
     python bot.py irc.esper.net dumpling "#dmptest" server1:DMPServer1/logs/ server2:DMPServer2/logs/
