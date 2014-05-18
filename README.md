@@ -5,6 +5,9 @@ Setup (Ubuntu):
     sudo apt-get install python python-pip
     sudo pip install irc
 
-Usage:
+Single server usage:
 
-    python bot.py DMPServer/logs/ irc.esper.net dumpling "#dmptest"
+    python bot.py irc.esper.net dumpling "#dmptest" DMPServer/logs/ 
+
+Multi server usage:
+    python bot.py irc.esper.net dumpling "#dmptest" server1:DMPServer1/logs/ server2:DMPServer2/logs/

@@ -2,14 +2,10 @@ import sys, os, re
 from irc.bot import SingleServerIRCBot
 
 class DMPBot(SingleServerIRCBot):
-    def __init__(self, logdir, channel, nick, server, port=6667):
+    def __init__(self, logdirs, channel, nick, server, port=6667):
         super(DMPBot, self).__init__([(server, port)], nick, nick)
         self.server = server
         self.channel = channel
-
-        self.logdir = logdir
-        self.logfile = None
-        self.logdir_modified = 0
 
         self.joinre = re.compile(r".* Client (.*?) handshook successfully!.*")
         self.quitre = re.compile(r".*: (.*?) sent connection end message, reason: (.*)")
@@ -28,9 +24,41 @@ class DMPBot(SingleServerIRCBot):
         self.connection.execute_every(0.1, self.checklog)
 
     def checklog(self):
-        if (os.path.getmtime(self.logdir) > self.logdir_modified):
-            self.logdir_modified = os.path.getmtime(self.logdir)
-            logs =  [os.path.join(self.logdir, f) for f in os.listdir(self.logdir) if os.path.isfile(os.path.join(self.logdir, f))]
+        for logdir in logdirs:
+            line = logdir.check()
+            if line:
+                #print(line)
+                joinmatch = self.joinre.match(line)
+                quitmatch = self.quitre.match(line)
+                disconnmatch = self.disconnre.match(line)
+                globalmatch = self.globalre.match(line)
+                if joinmatch:
+                    self.msg(logdir.tag, "%s joined the server" % joinmatch.group(1))
+                elif quitmatch:
+                    self.msg(logdir.tag, "%s quit" % quitmatch.group(1))
+                elif disconnmatch:
+                    self.msg(logdir.tag, "%s disconnected: %s" % (disconnmatch.group(1), disconnmatch.group(3)))
+                elif globalmatch:
+                    self.msg(logdir.tag, "%s: %s" % (globalmatch.group(1), globalmatch.group(2)))
+    def msg(self, tag, message):
+        if tag:
+            message = "%s - %s" % (tag, message)
+        self.connection.privmsg(self.channel, message)
+        
+
+
+class LogDir(object):
+    def __init__(self, tag, path):
+        self.last_modified = 0
+        self.path = path
+        self.tag = tag
+        self.logfile = None
+        
+
+    def check(self):
+        if (os.path.getmtime(self.path) > self.last_modified):
+            self.last_modified = os.path.getmtime(self.path)
+            logs =  [os.path.join(self.path, f) for f in os.listdir(self.path) if os.path.isfile(os.path.join(self.path, f))]
             latest_log = max(logs, key=os.path.getmtime)
             if latest_log != self.logfile:
                 print("Following logfile: %s" % latest_log)
@@ -40,34 +68,20 @@ class DMPBot(SingleServerIRCBot):
 
         where = self.log.tell()
         line = self.log.readline()
-        if line:
-            #print(line)
-
-            joinmatch = self.joinre.match(line)
-            quitmatch = self.quitre.match(line)
-            disconnmatch = self.disconnre.match(line)
-            globalmatch = self.globalre.match(line)
-            if joinmatch:
-                self.connection.privmsg(self.channel, "%s joined the server" % joinmatch.group(1))
-            elif quitmatch:
-                self.connection.privmsg(self.channel, "%s quit" % quitmatch.group(1))
-            elif disconnmatch:
-                self.connection.privmsg(self.channel, "%s disconnected: %s" % (disconnmatch.group(1), disconnmatch.group(3)))
-            elif globalmatch:
-                self.connection.privmsg(self.channel, "%s: %s" % (globalmatch.group(1), globalmatch.group(2)))
-                
-        else:
+        if not line:
             self.log.seek(where)
+        return line
+        
 
 if __name__ == "__main__":
     if len(sys.argv) < 5:
         print("Error: Not enough arguments.")
-        print("usage: <logdir> <server[:port]> <nick> <channel>")
+        print("usage: <server[:port]> <nick> <channel> <[tag:]logdir>*")
         sys.exit(1)
     
-    logdir = sys.argv[1]
+    args = list(sys.argv[1:]) # Take a copy of argv
 
-    server = sys.argv[2].split(":", 1)
+    server = args.pop(0).split(":", 1)
     server_name = server[0]
     
     if len(server) == 2:
@@ -78,8 +92,17 @@ if __name__ == "__main__":
     else:
         server_port = 6667
     
-    nick = sys.argv[3]
-    channel = sys.argv[4]
+    nick = args.pop(0)
+    channel = args.pop(0)
 
-    bot = DMPBot(logdir, channel, nick, server_name, server_port)
+    # Any remaining args are logdirs
+    logdirs = []
+    for d in args:
+        dtoks = d.split(":", 1)
+        if len(dtoks) == 2:
+            logdirs.append(LogDir(dtoks[0], dtoks[1]))
+        else:
+            logdirs.append(LogDir(None, d))
+
+    bot = DMPBot(logdirs, channel, nick, server_name, server_port)
     bot.start()
