@@ -1,4 +1,4 @@
-An irc bot which scans DMPServer logfiles and sends joins/quits and global messages to a chanel.
+An irc bot which scans DMPServer logfiles and sends joins/quits and global messages to a channel.
 
 Setup (Ubuntu):
 
